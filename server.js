@@ -33,6 +33,7 @@ app.post('/compress', async (req, res) => {
   const input = path.join(tmpDir, 'in.pdf')
   const output = path.join(tmpDir, 'out.pdf')
 
+  //try to compress the pdf
   try {
     console.log({
       event: 'compress_start',
@@ -40,7 +41,11 @@ app.post('/compress', async (req, res) => {
     })
 
     await fs.writeFile(input, req.body)
-
+    //set the path to the ghostscript executable
+    const gsPath = process.platform === 'win32'
+    ? 'gswin64c'
+    : 'gs'
+    //compress the pdf
     await new Promise((resolve, reject) => {
       execFile(
         'gs',
@@ -67,7 +72,7 @@ app.post('/compress', async (req, res) => {
       )
     })
 
-    const result = await fs.readFile(output)
+    const result = await fs.readFile(output)///read the compressed pdf
 
     console.log({
       event: 'compress_success',
@@ -79,11 +84,13 @@ app.post('/compress', async (req, res) => {
       durationMs: Date.now() - startedAt
     })
 
+    //set the headers for the response
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Length', String(result.length))
     res.setHeader('Content-Disposition', 'inline; filename="compressed.pdf"')
-    res.send(result)
+    res.send(result)//send the compressed pdf
   } catch (err) {
+    //if there is an error, log the error
     const isTimeout =
       err instanceof Error && err.message === 'Ghostscript timeout'
 
@@ -99,14 +106,15 @@ app.post('/compress', async (req, res) => {
 
     return res.status(500).json({ error: 'Compression failed' })
   } finally {
+    //decrement the active jobs
     activeJobs--
     //or activeJobs = Math.max(0, activeJobs - 1)
-    await fs.rm(tmpDir, { recursive: true, force: true })
+    await fs.rm(tmpDir, { recursive: true, force: true })//remove the temporary directory
   }
 })
 
-const PORT = process.env.PORT || 10000
-
+const PORT = process.env.PORT || 10000//port number
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`PDF Compressor is running on port ${PORT}`)
+  console.log(`PDF Compressor is running on port ${PORT}`)//log the port number 
 })
+//listen to the port
